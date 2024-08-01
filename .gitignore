@@ -1,0 +1,6 @@
+**.DS_Store
+**Icon?
+out
+database.json
+.env
+/vendor
