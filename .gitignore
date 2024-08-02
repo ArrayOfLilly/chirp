@@ -4,3 +4,4 @@ out
 database.json
 .env
 /vendor
+out
