@@ -7,10 +7,15 @@ import (
 	"strings"
 )
 
+// func handlerChirpCreate(w http.ResponseWriter, r *http.Request) {
+
+// }
+
 func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
+
 	type returnVals struct {
 		CleanedBody string `json:"cleaned_body"`
 	}
@@ -28,8 +33,6 @@ func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
-
 	const maxChirpLength = 140
 
 	if len(params.Body) > maxChirpLength {
@@ -40,6 +43,7 @@ func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, returnVals{
 		CleanedBody: params.Body,
 	})
+
 }
 
 func filterProphane(s string, wordsToFilter []string) string {

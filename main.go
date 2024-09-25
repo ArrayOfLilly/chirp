@@ -4,13 +4,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync/atomic"
 
 	"github.com/joho/godotenv"
 )
 
 // a struct that will hold any stateful, in-memory data we'll need to keep track of
 type apiConfig struct {
-	fileserverHits int
+	// safely incrementable int type for case of concurrent use
+	fileserverHits atomic.Int32
 }
 
 func main() {
@@ -42,7 +44,7 @@ func main() {
 	// To serve a directory on disk (/) under an alternate URL
 	// path (/app), use StripPrefix to modify the request
 	// URL's path before the FileServer sees it:
-	mux.Handle("/app/*", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir(baseUrl)))))
+	mux.Handle("/app/", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir(baseUrl)))))
 
 	
 	// http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
@@ -53,12 +55,13 @@ func main() {
 	// func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request)
 	// ServeHTTP calls f(w, r).
 	mux.HandleFunc("GET /api/healthz", handlerReady)
-	mux.HandleFunc("GET /api/error", handlerErr)
-	mux.HandleFunc("GET /api/reset", apiCfg.handlerReset)
-	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
-
-
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+	// mux.HandleFunc("POST /api/chirp", handlerChirpCreate)
+
+
+	
 	
 	
 	// A Server defines parameters for running an HTTP server. 
