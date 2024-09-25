@@ -1,18 +1,22 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 	"sync/atomic"
 
+	"github/ArrayOfLilly/Chirp/internal/database"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 // a struct that will hold any stateful, in-memory data we'll need to keep track of
 type apiConfig struct {
 	// safely incrementable int type for case of concurrent use
 	fileserverHits atomic.Int32
+	dbQueries *database.Queries
 }
 
 func main() {
@@ -24,6 +28,14 @@ func main() {
   	}
 
   	port := os.Getenv("PORT")
+	dbURL := os.Getenv("DB_URL")
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatal("No database connection")
+	}
+
+	dbQueries := database.New(db)
 
 	// ServeMux is an HTTP request multiplexer. 
 	// It matches the URL of each incoming request against a list of registered patterns and 
