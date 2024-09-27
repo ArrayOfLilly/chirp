@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/ArrayOfLilly/Chirp/internal/database"
+	"github.com/ArrayOfLilly/chirp/internal/database"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -15,27 +15,49 @@ import (
 // a struct that will hold any stateful, in-memory data we'll need to keep track of
 type apiConfig struct {
 	// safely incrementable int type for case of concurrent use
-	fileserverHits atomic.Int32
-	dbQueries *database.Queries
+	fileserverHits 	atomic.Int32
+	db 				*database.Queries
+	platform       	string
+	jwtSecret			string
 }
 
 func main() {
 	baseUrl := "."
-	apiCfg := apiConfig{}
 
   	if err := godotenv.Load(); err != nil {
     	log.Fatal("Error loading .env file")
   	}
 
-  	port := os.Getenv("PORT")
-	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
+	}
 
-	db, err := sql.Open("postgres", dbURL)
+  	port := os.Getenv("PORT")
+	if port == "" {
+		log.Fatal("PORT must be set")
+	}
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
+	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("No database connection")
 	}
+	dbQueries := database.New(dbConn)
 
-	dbQueries := database.New(db)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable must be set")
+	}
+
+	cfg := apiConfig{
+		fileserverHits: atomic.Int32{},
+		db:             dbQueries,
+		platform:       platform,
+		jwtSecret:		jwtSecret,
+	}
 
 	// ServeMux is an HTTP request multiplexer. 
 	// It matches the URL of each incoming request against a list of registered patterns and 
@@ -56,7 +78,7 @@ func main() {
 	// To serve a directory on disk (/) under an alternate URL
 	// path (/app), use StripPrefix to modify the request
 	// URL's path before the FileServer sees it:
-	mux.Handle("/app/", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir(baseUrl)))))
+	mux.Handle("/app/", http.StripPrefix("/app", cfg.middlewareMetricsInc(http.FileServer(http.Dir(baseUrl)))))
 
 	
 	// http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
@@ -66,15 +88,18 @@ func main() {
 	// If f is a function with the appropriate signature, HandlerFunc(f) is a Handler that calls f.
 	// func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request)
 	// ServeHTTP calls f(w, r).
+	
+	mux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
+	mux.HandleFunc("POST /admin/reset", cfg.handlerReset)
+
 	mux.HandleFunc("GET /api/healthz", handlerReady)
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
-	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
-	// mux.HandleFunc("POST /api/chirp", handlerChirpCreate)
 
+	mux.HandleFunc("POST /api/chirps", cfg.handlerChirpsCreate)
+	mux.HandleFunc("GET /api/chirps", cfg.handlerGetAllChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.handlerGetChirpById)
 
-	
-	
+	mux.HandleFunc("POST /api/users", cfg.handlerUserCreate)
+	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
 	
 	// A Server defines parameters for running an HTTP server. 
 	// The zero value for Server is a valid configuration.
