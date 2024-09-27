@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,10 @@ import (
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
+	}
+
+	type response struct {
+		Chirp
 	}
 
 	token, err := auth.GetBearerToken(r.Header)
@@ -35,18 +40,17 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	params.Body = filterProphane(params.Body, []string{
-		"kerfuffle", "sharbert", "fornax"})
+	badWordList := []string{"kerfuffle", "sharbert", "fornax"}
 
-	const maxChirpLength = 140
-
-	if len(params.Body) > maxChirpLength {
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long", err)
-		return
+	cleanedBody := filterProphane(params.Body, badWordList)
+	validChirp, err := validateChirp(cleanedBody)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), err)
 	}
+	
 
 	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
-        Body:   params.Body,
+        Body:   validChirp,
 		UserID: userID,
     })
     if err != nil {
@@ -54,7 +58,19 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
         return
     }
 
-    respondWithJSON(w, http.StatusCreated, databaseChirpToChirp(chirp))
+    respondWithJSON(w, http.StatusCreated, response{
+		Chirp: databaseChirpToChirp(chirp),
+	})
+}
+
+func validateChirp(msg string) (string, error) {
+	const maxChirpLength = 140
+
+	if len(msg) > maxChirpLength {
+		return "", errors.New("Chirp is too long")
+	}
+
+	return msg, nil
 }
 
 
@@ -85,17 +101,21 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	returnVals := []Chirp{}
+	response := []Chirp{}
 	for _, chirp := range chirps {
-		returnVals = append(returnVals, databaseChirpToChirp(chirp))
+		response = append(response, databaseChirpToChirp(chirp))
 	}
 
-	respondWithJSON(w, http.StatusOK, returnVals)
+	respondWithJSON(w, http.StatusOK, response)
 }
 
 func (cfg *apiConfig) handlerGetChirpById(w http.ResponseWriter, r *http.Request) {	
-	chirpIDString := r.PathValue("chirpID")
+	
+	type response struct {
+		Chirp
+	}
 
+	chirpIDString := r.PathValue("chirpID")
 	chirpID, err := uuid.Parse(chirpIDString)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID", err)
@@ -108,5 +128,7 @@ func (cfg *apiConfig) handlerGetChirpById(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, databaseChirpToChirp(chirp))
+	respondWithJSON(w, http.StatusCreated, response{
+		Chirp: databaseChirpToChirp(chirp),
+	})
 }

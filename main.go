@@ -18,11 +18,11 @@ type apiConfig struct {
 	fileserverHits 	atomic.Int32
 	db 				*database.Queries
 	platform       	string
-	jwtSecret			string
+	jwtSecret		string
 }
 
 func main() {
-	baseUrl := "."
+	filepathRoot := "."
 
   	if err := godotenv.Load(); err != nil {
     	log.Fatal("Error loading .env file")
@@ -37,10 +37,12 @@ func main() {
 	if port == "" {
 		log.Fatal("PORT must be set")
 	}
+
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL must be set")
 	}
+
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("No database connection")
@@ -52,7 +54,7 @@ func main() {
 		log.Fatal("JWT_SECRET environment variable must be set")
 	}
 
-	cfg := apiConfig{
+	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		platform:       platform,
@@ -78,10 +80,7 @@ func main() {
 	// To serve a directory on disk (/) under an alternate URL
 	// path (/app), use StripPrefix to modify the request
 	// URL's path before the FileServer sees it:
-	mux.Handle("/app/", http.StripPrefix("/app", cfg.middlewareMetricsInc(http.FileServer(http.Dir(baseUrl)))))
-
-	
-	// http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
+	mux.Handle("/app/", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir(filepathRoot)))))
 
 	// type HandlerFunc func(ResponseWriter, *Request)
 	// The HandlerFunc type is an adapter to allow the use of ordinary functions as HTTP handlers. 
@@ -89,17 +88,22 @@ func main() {
 	// func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request)
 	// ServeHTTP calls f(w, r).
 	
-	mux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
-	mux.HandleFunc("POST /admin/reset", cfg.handlerReset)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 
 	mux.HandleFunc("GET /api/healthz", handlerReady)
 
-	mux.HandleFunc("POST /api/chirps", cfg.handlerChirpsCreate)
-	mux.HandleFunc("GET /api/chirps", cfg.handlerGetAllChirps)
-	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.handlerGetChirpById)
+	mux.HandleFunc("POST /api/users", apiCfg.handlerUserCreate)
 
-	mux.HandleFunc("POST /api/users", cfg.handlerUserCreate)
-	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetAllChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirpById)
+
+	
 	
 	// A Server defines parameters for running an HTTP server. 
 	// The zero value for Server is a valid configuration.
@@ -111,5 +115,6 @@ func main() {
 	// ListenAndServe listens on the TCP network address srv.Addr and 
 	// then calls Serve to handle requests on incoming connections. 
 	// opens a TCP socket
+	log.Printf("Serving on port: %s\n", port)
 	log.Fatal(srv.ListenAndServe())
 }

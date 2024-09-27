@@ -1,18 +1,21 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 	"strings"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type TokenType string
+
 const TokenTypeAccess TokenType = "chirpy-access"
 
 var ErrNoAuthHeaderIncluded = errors.New("no auth header included in request")
@@ -36,7 +39,7 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 		Issuer: 	string(TokenTypeAccess),
 		IssuedAt: 	jwt.NewNumericDate(time.Now().UTC()),
 		ExpiresAt: 	jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
-		Subject: 	fmt.Sprintf("%d", userID),
+		Subject: 	userID.String(),
 	})
 	return token.SignedString(signingKey)
 }
@@ -55,24 +58,24 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 
 	issuer, err := token.Claims.GetIssuer()
     if err != nil {
-        return uuid.UUID{}, err
+        return uuid.Nil, err
     }
 
     if issuer != string(TokenTypeAccess) {
-        return uuid.UUID{}, errors.New("Invalid issuer")
+        return uuid.Nil, errors.New("invalid issuer")
     }
 
 	subject, err := token.Claims.GetSubject()
 	if err != nil {
-        return uuid.UUID{}, err
+        return uuid.Nil, err
     }
 
-	subjectUUID, err := uuid.Parse(subject)
+	id, err := uuid.Parse(subject)
 	if err != nil {
-		return uuid.UUID{}, err
+        return uuid.Nil, fmt.Errorf("invalid user ID: %w", err)
 	}
 
-	return subjectUUID, nil
+	return id, nil
 }
 
 
@@ -89,3 +92,11 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return splitAuth[1], nil
 }
 
+func MakeRefreshToken() (string, error) {
+	token := make([]byte, 32)
+	_, err := rand.Read(token)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(token), nil
+}
