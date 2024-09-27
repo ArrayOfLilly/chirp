@@ -13,6 +13,10 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+// handlerMetrics handles the metrics endpoint and responds with an HTML page displaying the number of times the server has been visited.
+//
+// w: The http.ResponseWriter to write the response to.
+// r: The http.Request to handle.
 func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

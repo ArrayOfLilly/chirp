@@ -4,6 +4,9 @@ import (
 	"net/http"
 )
 
+// handlerReset handles the reset endpoint and responds with an HTML page indicating that the Chirpy server has been reset.
+// Also reset the user table and cascading all the others.
+// It can be reseted onlz in development mode
 func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	if cfg.platform != "dev" {
 		w.WriteHeader(http.StatusForbidden)

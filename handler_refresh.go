@@ -7,6 +7,10 @@ import (
 	"github.com/ArrayOfLilly/chirp/internal/auth"
 )
 
+// handlerRefresh handles the refresh token request.
+//
+// It expects a valid refresh token to be included in the request's Authorization header.
+// Refreshes the access token.
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	type response struct {
 		Token string `json:"token"`
@@ -38,6 +42,10 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handlerRevoke revokes a refresh token.
+//
+// It expects a valid refresh token to be included in the request's Authorization header.
+// Returns a 204 No Content response if the token is successfully revoked, or an error response otherwise.
 func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {

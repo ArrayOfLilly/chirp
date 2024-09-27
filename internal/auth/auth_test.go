@@ -8,6 +8,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// TestCheckPasswordHash tests the CheckPasswordHash function with various test cases.
+//
+// It uses a test struct to define test cases with different passwords and hashes.
 func TestCheckPasswordHash(t *testing.T) {
 	// First, we need to create some hashed passwords for testing
 	password1 := "correctPassword123!"
@@ -63,6 +66,9 @@ func TestCheckPasswordHash(t *testing.T) {
 	}
 }
 
+// TestValidateJWT tests the ValidateJWT function with various test cases.
+//
+// It uses a test struct to define test cases with different token strings and secrets.
 func TestValidateJWT(t *testing.T) {
 	userID := uuid.New()
 	validToken, _ := MakeJWT(userID, "secret", time.Hour)
@@ -111,6 +117,9 @@ func TestValidateJWT(t *testing.T) {
 	}
 }
 
+// TestGetBearerToken tests the GetBearerToken function with various test cases.
+//
+// It uses a test struct to define test cases with different headers and expected results.
 func TestGetBearerToken(t *testing.T) {
 	tests := []struct {
 		name      string

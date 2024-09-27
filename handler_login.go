@@ -9,6 +9,19 @@ import (
 	"github.com/ArrayOfLilly/chirp/internal/database"
 )
 
+// handlerLogin handles the login request.
+//
+// It expects a JSON payload in the request body with the fields "email" and "password".
+// If the email and password are valid, it generates an access token and a refresh token.
+// The access token is a JWT with a TTL of one hour.
+// The refresh token is a random string.
+// It responds with a JSON payload containing the user information, access token, and refresh token.
+//
+// Parameters:
+//   - w: http.ResponseWriter to write the response.
+//   - r: *http.Request containing the request.
+//
+// Returns: None.
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	type parameters struct {
